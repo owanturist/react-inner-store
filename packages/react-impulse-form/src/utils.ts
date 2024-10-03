@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef } from "./dependencies"
 
-export type Func<TArgs extends ReadonlyArray<unknown>, TReturn = void> = (
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type Func<TArgs extends ReadonlyArray<any>, TReturn = void> = (
   this: void,
   ...args: TArgs
 ) => TReturn
@@ -10,9 +11,15 @@ export type Setter<
   TPrevValues extends ReadonlyArray<unknown> = [TValue],
 > = TValue | Func<TPrevValues, TValue>
 
-export type Result<TError, TData> = [TError] extends [never]
-  ? [null, TData]
-  : [TError, null] | [null, TData]
+export type WhenNull<T, TIfNever, TIfNotNever> = [T] extends [null]
+  ? TIfNever
+  : TIfNotNever
+
+export type Result<TError, TData> = WhenNull<
+  TError,
+  [null, TData],
+  [TError, null] | [null, TData]
+>
 
 // TODO use everywhere
 export function resolveSetter<

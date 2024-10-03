@@ -193,18 +193,18 @@ describe("ImpulseFormValue#getOutput()", () => {
     })
 
     expect(value.getOutput(scope)).toBeNull()
-    expect(value.getErrors(scope)).toBeNull()
+    expect(value.getError(scope)).toBeNull()
 
     value.setTouched(true)
     expect(value.getOutput(scope)).toBe("1")
-    expect(value.getErrors(scope)).toBeNull()
+    expect(value.getError(scope)).toBeNull()
   })
 
   it("selects value when not validated without schema", ({ scope }) => {
     const value = ImpulseFormValue.of("1")
 
     expect(value.getOutput(scope)).toBe("1")
-    expect(value.getErrors(scope)).toBeNull()
+    expect(value.getError(scope)).toBeNull()
   })
 
   it("selects value", ({ scope }) => {
@@ -240,7 +240,7 @@ describe("ImpulseFormValue#getOutput()", () => {
     })
 
     expect(value.getOutput(scope)).toBe("2")
-    expect(value.getErrors(scope)).toBeNull()
+    expect(value.getError(scope)).toBeNull()
   })
 
   it("transforms value with custom ZodLikeSchema#parse", ({ scope }) => {
@@ -254,37 +254,35 @@ describe("ImpulseFormValue#getOutput()", () => {
     })
 
     expect(value.getOutput(scope)).toBe("2")
-    expect(value.getErrors(scope)).toBeNull()
+    expect(value.getError(scope)).toBeNull()
   })
 })
 
-describe("ImpulseFormValue#getErrors()", () => {
+describe("ImpulseFormValue#getError()", () => {
   it("selects schema error", ({ scope }) => {
     const value = ImpulseFormValue.of("1", {
       touched: true,
       schema: z.string().max(1),
     })
 
-    expect(value.getErrors(scope)).toBeNull()
-    expect(value.getErrors(scope, arg(0))).toBeNull()
-    expect(value.getErrors(scope, (_, verbose) => verbose)).toBeNull()
+    expect(value.getError(scope)).toBeNull()
+    expect(value.getError(scope, arg(0))).toBeNull()
+    expect(value.getError(scope, (_, verbose) => verbose)).toBeNull()
 
     value.setInput("12")
     const errors = ["String must contain at most 1 character(s)"]
-    expect(value.getErrors(scope)).toStrictEqual(errors)
-    expect(value.getErrors(scope, arg(0))).toStrictEqual(errors)
-    expect(value.getErrors(scope, (_, verbose) => verbose)).toStrictEqual(
-      errors,
-    )
+    expect(value.getError(scope)).toStrictEqual(errors)
+    expect(value.getError(scope, arg(0))).toStrictEqual(errors)
+    expect(value.getError(scope, (_, verbose) => verbose)).toStrictEqual(errors)
 
     expectTypeOf(
-      value.getErrors(scope),
+      value.getError(scope),
     ).toEqualTypeOf<null | ReadonlyArray<string>>()
     expectTypeOf(
-      value.getErrors(scope, arg(0)),
+      value.getError(scope, arg(0)),
     ).toEqualTypeOf<null | ReadonlyArray<string>>()
     expectTypeOf(
-      value.getErrors(scope, (_, verbose) => verbose),
+      value.getError(scope, (_, verbose) => verbose),
     ).toEqualTypeOf<null | ReadonlyArray<string>>()
   })
 
@@ -295,10 +293,10 @@ describe("ImpulseFormValue#getErrors()", () => {
     })
 
     value.setErrors(["error"])
-    expect(value.getErrors(scope)).toStrictEqual(["error"])
+    expect(value.getError(scope)).toStrictEqual(["error"])
 
     value.setErrors(null)
-    expect(value.getErrors(scope)).toStrictEqual([
+    expect(value.getError(scope)).toStrictEqual([
       "Number must be less than or equal to 1",
     ])
   })
@@ -347,7 +345,7 @@ describe("ImpulseFormValue#getErrors()", () => {
             },
           })
 
-          expect(value.getErrors(scope)).toStrictEqual([
+          expect(value.getError(scope)).toStrictEqual([
             "error message #1",
             "error message #2",
           ])
@@ -366,7 +364,7 @@ describe("ImpulseFormValue#getErrors()", () => {
           },
         })
 
-        expect(value.getErrors(scope)).toStrictEqual(["error message"])
+        expect(value.getError(scope)).toStrictEqual(["error message"])
       })
 
       describe.each([
@@ -410,7 +408,7 @@ describe("ImpulseFormValue#getErrors()", () => {
             },
           })
 
-          expect(value.getErrors(scope)).toStrictEqual([
+          expect(value.getError(scope)).toStrictEqual([
             "error message #1",
             "error message #2",
           ])
@@ -439,7 +437,7 @@ describe("ImpulseFormValue#getErrors()", () => {
           },
         })
 
-        expect(value.getErrors(scope)).toStrictEqual([
+        expect(value.getError(scope)).toStrictEqual([
           "error message #1",
           "error message #2",
         ])
@@ -457,7 +455,7 @@ describe("ImpulseFormValue#getErrors()", () => {
           },
         })
 
-        expect(value.getErrors(scope)).toStrictEqual([])
+        expect(value.getError(scope)).toStrictEqual([])
       })
 
       it("returns empty array if ZodLikeError is not an object", ({
@@ -472,7 +470,7 @@ describe("ImpulseFormValue#getErrors()", () => {
           },
         })
 
-        expect(value.getErrors(scope)).toStrictEqual([])
+        expect(value.getError(scope)).toStrictEqual([])
       })
 
       it("returns error from ZodSchema#parse()", ({ scope }) => {
@@ -486,7 +484,7 @@ describe("ImpulseFormValue#getErrors()", () => {
         })
 
         value.setInput(2)
-        expect(value.getErrors(scope)).toStrictEqual([
+        expect(value.getError(scope)).toStrictEqual([
           "Number must be less than or equal to 1",
         ])
       })
@@ -499,20 +497,20 @@ describe("ImpulseFormValue#setErrors()", () => {
     const value = ImpulseFormValue.of("1")
 
     value.setErrors(["error"])
-    expect(value.getErrors(scope)).toStrictEqual(["error"])
+    expect(value.getError(scope)).toStrictEqual(["error"])
 
     value.setErrors([])
-    expect(value.getErrors(scope)).toBeNull()
+    expect(value.getError(scope)).toBeNull()
   })
 
   it("uses setter value", ({ scope }) => {
     const value = ImpulseFormValue.of("1")
 
     value.setErrors(["error"])
-    expect(value.getErrors(scope)).toStrictEqual(["error"])
+    expect(value.getError(scope)).toStrictEqual(["error"])
 
     value.setErrors((errors) => [...errors!, "error2"])
-    expect(value.getErrors(scope)).toStrictEqual(["error", "error2"])
+    expect(value.getError(scope)).toStrictEqual(["error", "error2"])
   })
 })
 
@@ -684,10 +682,10 @@ describe("ImpulseFormValue#reset()", () => {
     const value = ImpulseFormValue.of("2", { initial: "1" })
 
     value.setErrors(["error"])
-    expect(value.getErrors(scope)).toStrictEqual(["error"])
+    expect(value.getError(scope)).toStrictEqual(["error"])
 
     value.reset()
-    expect(value.getErrors(scope)).toBeNull()
+    expect(value.getError(scope)).toBeNull()
   })
 
   it("resets isValidated", ({ scope }) => {

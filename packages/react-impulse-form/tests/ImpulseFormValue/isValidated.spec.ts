@@ -58,7 +58,7 @@ describe.each([
       const value = setup({ validateOn: "onInit" })
 
       expect(isValidated(scope, value)).toBe(true)
-      expect(value.getErrors(scope)).toStrictEqual([
+      expect(value.getError(scope)).toStrictEqual([
         "Expected number, received nan",
       ])
     })
@@ -69,7 +69,7 @@ describe.each([
       const value = setup({ validateOn: "onTouch", touched: true })
 
       expect(isValidated(scope, value)).toBe(true)
-      expect(value.getErrors(scope)).toStrictEqual([
+      expect(value.getError(scope)).toStrictEqual([
         "Expected number, received nan",
       ])
     })
@@ -79,7 +79,7 @@ describe.each([
 
       value.setTouched(false)
       expect(isValidated(scope, value)).toBe(false)
-      expect(value.getErrors(scope)).toBeNull()
+      expect(value.getError(scope)).toBeNull()
     })
 
     it("marks as validated on setTouched(true)", ({ scope }) => {
@@ -87,7 +87,7 @@ describe.each([
 
       value.setTouched(true)
       expect(isValidated(scope, value)).toBe(true)
-      expect(value.getErrors(scope)).toStrictEqual([
+      expect(value.getError(scope)).toStrictEqual([
         "Expected number, received nan",
       ])
     })
@@ -97,7 +97,7 @@ describe.each([
 
       value.setTouched(false)
       expect(isValidated(scope, value)).toBe(true)
-      expect(value.getErrors(scope)).toStrictEqual([
+      expect(value.getError(scope)).toStrictEqual([
         "Expected number, received nan",
       ])
     })
@@ -108,7 +108,7 @@ describe.each([
       value.setTouched(false)
       value.setValidateOn("onTouch")
       expect(isValidated(scope, value)).toBe(true)
-      expect(value.getErrors(scope)).toStrictEqual([
+      expect(value.getError(scope)).toStrictEqual([
         "Expected number, received nan",
       ])
     })
@@ -118,7 +118,7 @@ describe.each([
 
       value.setInput("x")
       expect(isValidated(scope, value)).toBe(false)
-      expect(value.getErrors(scope)).toBeNull()
+      expect(value.getError(scope)).toBeNull()
     })
   })
 
@@ -127,7 +127,7 @@ describe.each([
       const value = setup({ validateOn: "onChange", initial: "x" })
 
       expect(isValidated(scope, value)).toBe(true)
-      expect(value.getErrors(scope)).toStrictEqual([
+      expect(value.getError(scope)).toStrictEqual([
         "Expected number, received nan",
       ])
     })
@@ -137,7 +137,7 @@ describe.each([
 
       value.setInput("x")
       expect(isValidated(scope, value)).toBe(true)
-      expect(value.getErrors(scope)).toStrictEqual([
+      expect(value.getError(scope)).toStrictEqual([
         "Expected number, received nan",
       ])
     })
@@ -147,7 +147,7 @@ describe.each([
 
       value.setInitial("x")
       expect(isValidated(scope, value)).toBe(true)
-      expect(value.getErrors(scope)).toStrictEqual([
+      expect(value.getError(scope)).toStrictEqual([
         "Expected number, received nan",
       ])
     })
@@ -157,7 +157,7 @@ describe.each([
 
       value.setInput("y")
       expect(isValidated(scope, value)).toBe(false)
-      expect(value.getErrors(scope)).toBeNull()
+      expect(value.getError(scope)).toBeNull()
     })
 
     it("keeps validated when the value changes to initial", ({ scope }) => {
@@ -165,13 +165,13 @@ describe.each([
 
       value.setInput("x")
       expect(isValidated(scope, value)).toBe(true)
-      expect(value.getErrors(scope)).toStrictEqual([
+      expect(value.getError(scope)).toStrictEqual([
         "Expected number, received nan",
       ])
 
       value.setInput(value.getInitial(scope))
       expect(isValidated(scope, value)).toBe(true)
-      expect(value.getErrors(scope)).toStrictEqual([
+      expect(value.getError(scope)).toStrictEqual([
         "Expected number, received nan",
       ])
     })
@@ -182,7 +182,7 @@ describe.each([
       value.setInput(value.getInitial(scope))
       value.setValidateOn("onChange")
       expect(isValidated(scope, value)).toBe(true)
-      expect(value.getErrors(scope)).toStrictEqual([
+      expect(value.getError(scope)).toStrictEqual([
         "Expected number, received nan",
       ])
     })
@@ -192,7 +192,7 @@ describe.each([
 
       value.setTouched(true)
       expect(isValidated(scope, value)).toBe(false)
-      expect(value.getErrors(scope)).toBeNull()
+      expect(value.getError(scope)).toBeNull()
     })
   })
 
@@ -202,7 +202,7 @@ describe.each([
 
       value.setTouched(true)
       expect(isValidated(scope, value)).toBe(false)
-      expect(value.getErrors(scope)).toBeNull()
+      expect(value.getError(scope)).toBeNull()
     })
 
     it("does not mark as validated on change", ({ scope }) => {
@@ -210,7 +210,7 @@ describe.each([
 
       value.setInput("x")
       expect(isValidated(scope, value)).toBe(false)
-      expect(value.getErrors(scope)).toBeNull()
+      expect(value.getError(scope)).toBeNull()
     })
   })
 
@@ -223,7 +223,7 @@ describe.each([
       const value = setup({ validateOn })
 
       expect(isValidated(scope, value)).toBe(false)
-      expect(value.getErrors(scope)).toBeNull()
+      expect(value.getError(scope)).toBeNull()
     })
 
     it("marks as validated on submit", async ({ scope }) => {
@@ -231,16 +231,16 @@ describe.each([
 
       await value.submit()
       expect(isValidated(scope, value)).toBe(true)
-      expect(value.getErrors(scope)).toStrictEqual([
+      expect(value.getError(scope)).toStrictEqual([
         "Expected number, received nan",
       ])
     })
 
     it("marks as validated when initialized with custom error", ({ scope }) => {
-      const value = setup({ validateOn, errors: ["error"] })
+      const value = setup({ validateOn, error: ["error"] })
 
       expect(isValidated(scope, value)).toBe(true)
-      expect(value.getErrors(scope)).toStrictEqual(["error"])
+      expect(value.getError(scope)).toStrictEqual(["error"])
     })
 
     it("marks as validated when custom error set", ({ scope }) => {
@@ -248,15 +248,15 @@ describe.each([
 
       value.setErrors(["error"])
       expect(isValidated(scope, value)).toBe(true)
-      expect(value.getErrors(scope)).toStrictEqual(["error"])
+      expect(value.getError(scope)).toStrictEqual(["error"])
     })
 
     it("unmarks as validated when custom error is removed", ({ scope }) => {
-      const value = setup({ validateOn, errors: ["error"] })
+      const value = setup({ validateOn, error: ["error"] })
 
       value.setErrors(null)
       expect(isValidated(scope, value)).toBe(false)
-      expect(value.getErrors(scope)).toBeNull()
+      expect(value.getError(scope)).toBeNull()
     })
   })
 })

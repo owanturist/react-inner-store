@@ -260,7 +260,7 @@ describe("ImpulseFormShape.of()", () => {
           first: ImpulseFormValue.of(""),
           second: ImpulseFormValue.of(0),
           third: ImpulseFormShape.of({
-            one: ImpulseFormValue.of(true, { errors: ["some"] }),
+            one: ImpulseFormValue.of(true, { error: ["some"] }),
             two: ImpulseFormValue.of([""]),
           }),
           fourth: ["anything"],
@@ -273,7 +273,7 @@ describe("ImpulseFormShape.of()", () => {
         },
       )
 
-      expect(shape.getErrors(scope, arg(1))).toStrictEqual({
+      expect(shape.getError(scope, arg(1))).toStrictEqual({
         first: ["another"],
         second: null,
         third: {
@@ -286,8 +286,8 @@ describe("ImpulseFormShape.of()", () => {
     it("gets current errors from setters", ({ scope }) => {
       const shape = ImpulseFormShape.of(
         {
-          first: ImpulseFormValue.of("", { errors: ["first"] }),
-          second: ImpulseFormValue.of(0, { errors: ["second"] }),
+          first: ImpulseFormValue.of("", { error: ["first"] }),
+          second: ImpulseFormValue.of(0, { error: ["second"] }),
           third: ImpulseFormShape.of(
             {
               one: ImpulseFormValue.of(true),
@@ -373,7 +373,7 @@ describe("ImpulseFormShape.of()", () => {
         },
       )
 
-      expect(shape.getErrors(scope, arg(1))).toStrictEqual({
+      expect(shape.getError(scope, arg(1))).toStrictEqual({
         first: ["first", "1"],
         second: ["second", "2"],
         third: {
@@ -850,7 +850,7 @@ describe("ImpulseFormShape.of()", () => {
   })
 })
 
-describe("ImpulseFormShape#getErrors()", () => {
+describe("ImpulseFormShape#getError()", () => {
   it("selects errors", ({ scope }) => {
     const shape = ImpulseFormShape.of(
       {
@@ -867,9 +867,9 @@ describe("ImpulseFormShape#getErrors()", () => {
       { touched: true },
     )
 
-    expect(shape.getErrors(scope)).toBeNull()
-    expect(shape.getErrors(scope, arg(0))).toBeNull()
-    expect(shape.getErrors(scope, arg(1))).toStrictEqual({
+    expect(shape.getError(scope)).toBeNull()
+    expect(shape.getError(scope, arg(0))).toBeNull()
+    expect(shape.getError(scope, arg(1))).toStrictEqual({
       first: null,
       second: null,
       third: {
@@ -881,13 +881,13 @@ describe("ImpulseFormShape#getErrors()", () => {
     shape.setInput({
       first: "12",
     })
-    expect(shape.getErrors(scope)).toStrictEqual({
+    expect(shape.getError(scope)).toStrictEqual({
       first: ["String must contain at most 1 character(s)"],
       second: null,
       third: null,
     })
-    expect(shape.getErrors(scope, arg(0))).toStrictEqual(shape.getErrors(scope))
-    expect(shape.getErrors(scope, arg(1))).toStrictEqual({
+    expect(shape.getError(scope, arg(0))).toStrictEqual(shape.getError(scope))
+    expect(shape.getError(scope, arg(1))).toStrictEqual({
       first: ["String must contain at most 1 character(s)"],
       second: null,
       third: {
@@ -901,7 +901,7 @@ describe("ImpulseFormShape#getErrors()", () => {
         two: ["1", "12"],
       },
     })
-    expect(shape.getErrors(scope)).toStrictEqual({
+    expect(shape.getError(scope)).toStrictEqual({
       first: ["String must contain at most 1 character(s)"],
       second: null,
       third: {
@@ -909,10 +909,10 @@ describe("ImpulseFormShape#getErrors()", () => {
         two: ["String must contain at most 1 character(s)"],
       },
     })
-    expect(shape.getErrors(scope, arg(0))).toStrictEqual(shape.getErrors(scope))
-    expect(shape.getErrors(scope, arg(1))).toStrictEqual(shape.getErrors(scope))
+    expect(shape.getError(scope, arg(0))).toStrictEqual(shape.getError(scope))
+    expect(shape.getError(scope, arg(1))).toStrictEqual(shape.getError(scope))
 
-    expectTypeOf(shape.getErrors(scope)).toEqualTypeOf<null | {
+    expectTypeOf(shape.getError(scope)).toEqualTypeOf<null | {
       readonly first: null | ReadonlyArray<string>
       readonly second: null | ReadonlyArray<string>
       readonly third: null | {
@@ -921,7 +921,7 @@ describe("ImpulseFormShape#getErrors()", () => {
       }
     }>()
 
-    expectTypeOf(shape.fields.third.getErrors(scope)).toEqualTypeOf<null | {
+    expectTypeOf(shape.fields.third.getError(scope)).toEqualTypeOf<null | {
       readonly one: null | ReadonlyArray<string>
       readonly two: null | ReadonlyArray<string>
     }>()
@@ -931,8 +931,8 @@ describe("ImpulseFormShape#getErrors()", () => {
 describe("ImpulseFormShape#setErrors()", () => {
   it("specifies errors", ({ scope }) => {
     const shape = ImpulseFormShape.of({
-      first: ImpulseFormValue.of("", { errors: ["first"] }),
-      second: ImpulseFormValue.of(0, { errors: ["second"] }),
+      first: ImpulseFormValue.of("", { error: ["first"] }),
+      second: ImpulseFormValue.of(0, { error: ["second"] }),
       third: ImpulseFormShape.of(
         {
           one: ImpulseFormValue.of(true),
@@ -948,7 +948,7 @@ describe("ImpulseFormShape#setErrors()", () => {
       fourth: ["anything"],
     })
 
-    expect(shape.getErrors(scope)).toStrictEqual({
+    expect(shape.getError(scope)).toStrictEqual({
       first: ["first"],
       second: ["second"],
       third: {
@@ -962,12 +962,12 @@ describe("ImpulseFormShape#setErrors()", () => {
       second: undefined,
       third: null,
     })
-    expect(shape.getErrors(scope)).toStrictEqual({
+    expect(shape.getError(scope)).toStrictEqual({
       first: ["another"],
       second: ["second"],
       third: null,
     })
-    expect(shape.getErrors(scope, arg(1))).toStrictEqual({
+    expect(shape.getError(scope, arg(1))).toStrictEqual({
       first: ["another"],
       second: ["second"],
       third: {
@@ -1042,7 +1042,7 @@ describe("ImpulseFormShape#setErrors()", () => {
       }
     })
 
-    expect(shape.getErrors(scope)).toStrictEqual({
+    expect(shape.getError(scope)).toStrictEqual({
       first: ["another", "1"],
       second: ["second", "2"],
       third: {
@@ -1100,8 +1100,8 @@ describe("ImpulseFormShape#setErrors()", () => {
 
   it("resets all errors", ({ scope }) => {
     const shape = ImpulseFormShape.of({
-      first: ImpulseFormValue.of("", { errors: ["first"] }),
-      second: ImpulseFormValue.of(0, { errors: ["second"] }),
+      first: ImpulseFormValue.of("", { error: ["first"] }),
+      second: ImpulseFormValue.of(0, { error: ["second"] }),
       third: ImpulseFormShape.of(
         {
           one: ImpulseFormValue.of(true),
@@ -1118,7 +1118,7 @@ describe("ImpulseFormShape#setErrors()", () => {
     })
 
     shape.setErrors(null)
-    expect(shape.getErrors(scope)).toBeNull()
+    expect(shape.getError(scope)).toBeNull()
   })
 })
 

@@ -17,9 +17,9 @@ export interface ImpulseFormParams {
   "validateOn.schema": unknown
   "validateOn.schema.verbose": unknown
 
-  "errors.setter": unknown
-  "errors.schema": unknown
-  "errors.schema.verbose": unknown
+  "error.setter": unknown
+  "error.schema": unknown
+  "error.schema.verbose": unknown
 }
 
 export type ImpulseFormParamsKeys = keyof ImpulseFormParams
@@ -183,7 +183,7 @@ export abstract class ImpulseForm<
   }
 
   public isInvalid(scope: Scope): boolean {
-    return this.getErrors(scope, isPresent)
+    return this.getError(scope, isPresent)
   }
 
   public isDirty(scope: Scope): boolean
@@ -204,16 +204,16 @@ export abstract class ImpulseForm<
     return this._isDirty(scope, select)
   }
 
-  public abstract getErrors(scope: Scope): TParams["errors.schema"]
-  public abstract getErrors<TResult>(
+  public abstract getError(scope: Scope): TParams["error.schema"]
+  public abstract getError<TResult>(
     scope: Scope,
     select: (
-      concise: TParams["errors.schema"],
-      verbose: TParams["errors.schema.verbose"],
+      concise: TParams["error.schema"],
+      verbose: TParams["error.schema.verbose"],
     ) => TResult,
   ): TResult
 
-  public abstract setErrors(setter: TParams["errors.setter"]): void
+  public abstract setErrors(setter: TParams["error.setter"]): void
 
   public abstract isValidated(scope: Scope): boolean
   public abstract isValidated<TResult>(
@@ -256,11 +256,11 @@ export abstract class ImpulseForm<
 
   public abstract setInput(setter: TParams["input.setter"]): void
 
-  public abstract getOutput(scope: Scope): null | TParams["output.schema"]
+  public abstract getOutput(scope: Scope): TParams["output.schema"]
   public abstract getOutput<TResult>(
     scope: Scope,
     select: (
-      concise: null | TParams["output.schema"],
+      concise: TParams["output.schema"],
       verbose: TParams["output.schema.verbose"],
     ) => TResult,
   ): TResult

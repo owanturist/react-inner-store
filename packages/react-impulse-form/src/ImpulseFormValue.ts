@@ -1,5 +1,3 @@
-import type Types from "ts-toolbelt"
-
 import {
   type Compare,
   type Scope,
@@ -17,6 +15,8 @@ import {
   isNull,
   isFunction,
   params,
+  type WhenNull,
+  type Func,
 } from "./utils"
 import { ImpulseForm } from "./ImpulseForm"
 import { zodLikeParse, type ZodLikeSchema } from "./ZodLikeSchema"
@@ -29,10 +29,9 @@ import {
 } from "./ValidateStrategy"
 import { Emitter } from "./Emitter"
 
-export interface ImpulseFormValueOptions<TInput, TOutput = TInput> {
-  errors?: null | ReadonlyArray<string>
+export interface ImpulseFormValueOptions<TInput, TError = null> {
+  error?: null | TError
   touched?: boolean
-  schema?: ZodLikeSchema<TOutput>
 
   /**
    * A compare function that determines whether the input value changes.
@@ -88,62 +87,129 @@ export interface ImpulseFormValueOptions<TInput, TOutput = TInput> {
   validateOn?: ValidateStrategy
 }
 
+export interface ImpulseFormValueOptionsWithSchema<TInput, TOutput = TInput>
+  extends ImpulseFormValueOptions<TInput, ReadonlyArray<string>> {
+  validate: ZodLikeSchema<TOutput>
+}
+
+export interface ImpulseFormValueOptionsWithValidate<
+  TInput,
+  TError = null,
+  TOutput = TInput,
+> extends ImpulseFormValueOptions<TInput, TError> {
+  validate: (input: TInput) => Result<TError, TOutput>
+}
+
 export type ImpulseFormValueInputSetter<TInput> = Setter<
   TInput,
   [TInput, TInput]
 >
 
+export type ImpulseFormValueOutputSchema<TError, TOutput> = WhenNull<
+  TError,
+  TOutput,
+  null | TOutput
+>
+
+export type ImpulseFormValueOutputSchemaVerbose<TError, TOutput> = WhenNull<
+  TError,
+  TOutput,
+  null | TOutput
+>
+
 export type ImpulseFormValueFlagSetter = Setter<boolean>
 
-export type ImpulseFormValueValidateOnSetter = Setter<ValidateStrategy>
+export type ImpulseFormValueValidateOnSetter<TError> = WhenNull<
+  TError,
+  null,
+  Setter<ValidateStrategy>
+>
 
-export type ImpulseFormValueErrorsSetter = Setter<null | ReadonlyArray<string>>
+export type ImpulseFormValueValidateOnSchema<TError> = WhenNull<
+  TError,
+  typeof VALIDATE_ON_INIT,
+  ValidateStrategy
+>
+export type ImpulseFormValueErrorSetter<TError> = WhenNull<
+  TError,
+  null,
+  Setter<null | TError>
+>
 
-export class ImpulseFormValue<TInput, TOutput = TInput> extends ImpulseForm<{
+export type ImpulseFormValueErrorSchema<TError> = WhenNull<
+  TError,
+  null,
+  null | TError
+>
+
+export class ImpulseFormValue<
+  TInput,
+  TError = null,
+  TOutput = TInput,
+> extends ImpulseForm<{
   "input.setter": ImpulseFormValueInputSetter<TInput>
   "input.schema": TInput
 
-  "output.schema": TOutput
-  "output.schema.verbose": null | TOutput
+  "output.schema": ImpulseFormValueOutputSchema<TError, TOutput>
+  "output.schema.verbose": ImpulseFormValueOutputSchemaVerbose<TError, TOutput>
 
   "flag.setter": ImpulseFormValueFlagSetter
   "flag.schema": boolean
   "flag.schema.verbose": boolean
 
-  "validateOn.setter": ImpulseFormValueValidateOnSetter
-  "validateOn.schema": ValidateStrategy
-  "validateOn.schema.verbose": ValidateStrategy
+  "validateOn.setter": ImpulseFormValueValidateOnSetter<TError>
+  "validateOn.schema": ImpulseFormValueValidateOnSchema<TError>
+  "validateOn.schema.verbose": ImpulseFormValueValidateOnSchema<TError>
 
-  "errors.setter": ImpulseFormValueErrorsSetter
-  "errors.schema": null | ReadonlyArray<string>
-  "errors.schema.verbose": null | ReadonlyArray<string>
+  "error.setter": ImpulseFormValueErrorSetter<TError>
+  "error.schema": ImpulseFormValueErrorSchema<TError>
+  "error.schema.verbose": ImpulseFormValueErrorSchema<TError>
 }> {
-  public static of<TInput>(
+  public static of<TInput, TError = null>(
     input: TInput,
-    options?: ImpulseFormValueOptions<TInput, TInput>,
-  ): ImpulseFormValue<TInput, TInput>
+    options?: ImpulseFormValueOptions<TInput, TError>,
+  ): ImpulseFormValue<TInput, TError>
 
   public static of<TInput, TOutput = TInput>(
     input: TInput,
-    options: Types.Object.AtLeast<
-      ImpulseFormValueOptions<TInput, TOutput>,
-      "schema"
-    >,
-  ): ImpulseFormValue<TInput, TOutput>
+    options: ImpulseFormValueOptionsWithSchema<TInput, TOutput>,
+  ): ImpulseFormValue<TInput, ReadonlyArray<string>, TOutput>
 
-  public static of<TInput, TOutput = TInput>(
+  public static of<TInput, TError = null, TOutput = TInput>(
+    input: TInput,
+    options: ImpulseFormValueOptionsWithValidate<TInput, TError, TOutput>,
+  ): ImpulseFormValue<TInput, TError, TOutput>
+
+  public static of<TInput, TError = null, TOutput = TInput>(
     input: TInput,
     {
-      errors,
+      error = null,
       touched = false,
-      schema,
       isInputEqual = eq,
-      isInputDirty = (left, right, scope) => !isInputEqual(left, right, scope),
+      isInputDirty = (left: TInput, right: TInput, scope: Scope) =>
+        !isInputEqual(left, right, scope),
       initial,
+      validate,
       validateOn = VALIDATE_ON_TOUCH,
-    }: ImpulseFormValueOptions<TInput, TOutput> = {},
-  ): ImpulseFormValue<TInput, TOutput> {
+    }:
+      | (ImpulseFormValueOptions<TInput, TError> & { validate?: never })
+      | ImpulseFormValueOptionsWithSchema<TInput, TOutput>
+      | ImpulseFormValueOptionsWithValidate<TInput, TError, TInput | TOutput>,
+  ): ImpulseFormValue<TInput, TError, TOutput> {
     const _initial = isUndefined(initial) ? input : initial
+
+    const [_validate, _error] =
+      validate == null
+        ? [Impulse.of(), Impulse.of(error)]
+        : isFunction(validate)
+          ? [Impulse.of(validate), Impulse.of(error)]
+          : [
+              Impulse.of((value: TInput) => zodLikeParse(validate, value)),
+              Impulse.of(error as null | ReadonlyArray<string>, {
+                compare: (left, right) =>
+                  shallowArrayEquals(left ?? [], right ?? []),
+              }),
+            ]
 
     // initiate with the same value if specified but equal
     const inputOrInitial = untrack((scope) => {
@@ -154,38 +220,40 @@ export class ImpulseFormValue<TInput, TOutput = TInput> extends ImpulseForm<{
       return input
     })
 
-    return new ImpulseFormValue(
+    return new ImpulseFormValue<TInput, TError, TOutput>(
       null,
       Impulse.of(),
       Impulse.of(touched),
       Impulse.of(validateOn),
-      Impulse.of(errors ?? [], { compare: shallowArrayEquals }),
+      _error as Impulse<null | TError>,
       Impulse.of(!isUndefined(initial)),
       Impulse.of(_initial, { compare: isInputEqual }),
       Impulse.of(inputOrInitial, { compare: isInputEqual }),
-      Impulse.of(schema),
+      _validate as Impulse<undefined | Func<[TInput], Result<TError, TOutput>>>,
       isInputEqual,
       isInputDirty,
     )
   }
 
-  private readonly _onFocus = new Emitter<[errors: ReadonlyArray<string>]>()
+  private readonly _onFocus = new Emitter<[errors: TError]>()
 
   private readonly _validated = Impulse.of(false)
 
   protected constructor(
     root: null | ImpulseForm,
     private readonly _initialSource: Impulse<
-      undefined | ImpulseFormValue<TInput, TOutput>
+      undefined | ImpulseFormValue<TInput, TError, TOutput>
     >,
     private readonly _touched: Impulse<boolean>,
     // TODO convert to undefined | ValidateStrategy so it can inherit from parent (List)
     private readonly _validateOn: Impulse<ValidateStrategy>,
-    private readonly _errors: Impulse<ReadonlyArray<string>>,
+    private readonly _error: Impulse<null | TError>,
     private readonly _isExplicitInitial: Impulse<boolean>,
     private readonly _initial: Impulse<TInput>,
     private readonly _input: Impulse<TInput>,
-    private readonly _schema: Impulse<undefined | ZodLikeSchema<TOutput>>,
+    private readonly _validate: Impulse<
+      undefined | Func<[TInput], Result<TError, TOutput>>
+    >,
     private readonly _isInputEqual: Compare<TInput>,
     private readonly _isInputDirty: Compare<TInput>,
   ) {
@@ -199,7 +267,7 @@ export class ImpulseFormValue<TInput, TOutput = TInput> extends ImpulseForm<{
         return true
       }
 
-      switch (this.getValidateOn(scope)) {
+      switch (this._validateOn.getValue(scope)) {
         case VALIDATE_ON_INIT: {
           return true
         }
@@ -219,19 +287,17 @@ export class ImpulseFormValue<TInput, TOutput = TInput> extends ImpulseForm<{
     })
   }
 
-  private _validate(
-    scope: Scope,
-  ): Result<ReadonlyArray<string>, null | TOutput> {
-    const errors = this._errors.getValue(scope)
+  private _transform(scope: Scope): Result<TError, null | TOutput> {
+    const error = this._error.getValue(scope)
 
-    if (errors.length > 0) {
-      return [errors, null]
+    if (error != null) {
+      return [error, null] as Result<TError, null | TOutput>
     }
 
     const value = this.getInput(scope)
-    const schema = this._schema.getValue(scope)
+    const validate = this._validate.getValue(scope)
 
-    if (isUndefined(schema)) {
+    if (isUndefined(validate)) {
       return [null, value as unknown as TOutput]
     }
 
@@ -239,13 +305,13 @@ export class ImpulseFormValue<TInput, TOutput = TInput> extends ImpulseForm<{
       return [null, null]
     }
 
-    return zodLikeParse(schema, value)
+    return validate(value)
   }
 
   protected _getFocusFirstInvalidValue(): null | VoidFunction {
     const errors = untrack((scope) => {
-      return this._onFocus._isEmpty() ? null : this.getErrors(scope)
-    })
+      return this._onFocus._isEmpty() ? null : this.getError(scope)
+    }) as null | TError
 
     if (isNull(errors)) {
       return null
@@ -259,24 +325,24 @@ export class ImpulseFormValue<TInput, TOutput = TInput> extends ImpulseForm<{
   // TODO add tests against _validated when cloning
   protected _childOf(
     parent: null | ImpulseForm,
-  ): ImpulseFormValue<TInput, TOutput> {
+  ): ImpulseFormValue<TInput, TError, TOutput> {
     return new ImpulseFormValue(
       parent,
       this._initialSource.clone(),
       this._touched.clone(),
       this._validateOn.clone(),
-      this._errors.clone(),
+      this._error.clone(),
       this._isExplicitInitial.clone(),
       this._initial.clone(),
       this._input.clone(),
-      this._schema.clone(),
+      this._validate.clone(),
       this._isInputEqual,
       this._isInputDirty,
     )
   }
 
   protected _setInitial(
-    initial: undefined | ImpulseFormValue<TInput, TOutput>,
+    initial: undefined | ImpulseFormValue<TInput, TError, TOutput>,
     isRoot: boolean,
   ): void {
     batch((scope) => {
@@ -307,33 +373,32 @@ export class ImpulseFormValue<TInput, TOutput = TInput> extends ImpulseForm<{
     return select(dirty, dirty, true)
   }
 
-  public getErrors(scope: Scope): null | ReadonlyArray<string>
-  public getErrors<TResult>(
+  public getError(scope: Scope): ImpulseFormValueErrorSchema<TError>
+  public getError<TResult>(
     scope: Scope,
     select: (
-      concise: null | ReadonlyArray<string>,
-      verbose: null | ReadonlyArray<string>,
+      concise: ImpulseFormValueErrorSchema<TError>,
+      verbose: ImpulseFormValueErrorSchema<TError>,
     ) => TResult,
   ): TResult
-  public getErrors<TResult = null | ReadonlyArray<string>>(
+  public getError<TResult = ImpulseFormValueErrorSchema<TError>>(
     scope: Scope,
     select: (
-      concise: null | ReadonlyArray<string>,
-      verbose: null | ReadonlyArray<string>,
+      concise: ImpulseFormValueErrorSchema<TError>,
+      verbose: ImpulseFormValueErrorSchema<TError>,
     ) => TResult = params._first as typeof select,
   ): TResult {
-    const [errors] = this._validate(scope)
+    const [error] = this._transform(scope)
 
-    return select(errors, errors)
+    return select(
+      error as ImpulseFormValueErrorSchema<TError>,
+      error as ImpulseFormValueErrorSchema<TError>,
+    )
   }
 
-  public setErrors(setter: ImpulseFormValueErrorsSetter): void {
-    this._errors.setValue((errors) => {
-      const nextErrors = isFunction(setter)
-        ? setter(errors.length === 0 ? null : errors)
-        : setter
-
-      return nextErrors ?? []
+  public setErrors(setter: ImpulseFormValueErrorSetter<TError>): void {
+    this._error.setValue((error) => {
+      return (isFunction(setter) ? setter(error) : setter) as null | TError
     })
   }
 
@@ -350,32 +415,41 @@ export class ImpulseFormValue<TInput, TOutput = TInput> extends ImpulseForm<{
     ) => TResult = params._first as typeof select,
   ): TResult {
     const validated =
-      this._validated.getValue(scope) || this._errors.getValue(scope).length > 0
+      this._validated.getValue(scope) || this._error.getValue(scope) != null
 
     return select(validated, validated)
   }
 
-  public getValidateOn(scope: Scope): ValidateStrategy
+  public getValidateOn(scope: Scope): ImpulseFormValueValidateOnSchema<TError>
   public getValidateOn<TResult>(
     scope: Scope,
-    select: (concise: ValidateStrategy, verbose: ValidateStrategy) => TResult,
+    select: (
+      concise: ImpulseFormValueValidateOnSchema<TError>,
+      verbose: ImpulseFormValueValidateOnSchema<TError>,
+    ) => TResult,
   ): TResult
-  public getValidateOn<TResult = ValidateStrategy>(
+  public getValidateOn<TResult = ImpulseFormValueValidateOnSchema<TError>>(
     scope: Scope,
     select: (
-      concise: ValidateStrategy,
-      verbose: ValidateStrategy,
+      concise: ImpulseFormValueValidateOnSchema<TError>,
+      verbose: ImpulseFormValueValidateOnSchema<TError>,
     ) => TResult = params._first as typeof select,
   ): TResult {
-    const validateOn = this._validateOn.getValue(scope)
+    const validateOn = this._validateOn.getValue(
+      scope,
+    ) as ImpulseFormValueValidateOnSchema<TError>
 
     return select(validateOn, validateOn)
   }
 
-  public setValidateOn(setter: ImpulseFormValueValidateOnSetter): void {
+  public setValidateOn(setter: ImpulseFormValueValidateOnSetter<TError>): void {
     batch((scope) => {
       const validateOn = this._validateOn.getValue(scope)
-      const nextValidateOn = isFunction(setter) ? setter(validateOn) : setter
+      const nextValidateOn = (
+        isFunction(setter)
+          ? (setter as Func<[ValidateStrategy], ValidateStrategy>)(validateOn)
+          : setter
+      ) as ValidateStrategy
 
       if (validateOn !== nextValidateOn) {
         this._validateOn.setValue(nextValidateOn)
@@ -408,8 +482,16 @@ export class ImpulseFormValue<TInput, TOutput = TInput> extends ImpulseForm<{
     })
   }
 
-  public setSchema(schema: null | ZodLikeSchema<TOutput>): void {
-    this._schema.setValue(schema ?? undefined)
+  public setSchema(
+    schema: TError extends ReadonlyArray<string>
+      ? ZodLikeSchema<TOutput>
+      : never,
+  ): void {
+    function validate(value: TInput): Result<TError, TOutput> {
+      return zodLikeParse(schema, value) as Result<TError, TOutput>
+    }
+
+    this._validate.setValue(() => validate)
   }
 
   public reset(
@@ -427,25 +509,28 @@ export class ImpulseFormValue<TInput, TOutput = TInput> extends ImpulseForm<{
       // TODO test when reset for all below
       this._validated.setValue(false)
       this._touched.setValue(false)
-      this._errors.setValue([])
+      this._error.setValue(null)
     })
   }
 
-  public getOutput(scope: Scope): null | TOutput
+  public getOutput(scope: Scope): ImpulseFormValueOutputSchema<TError, TOutput>
   public getOutput<TResult>(
     scope: Scope,
-    select: (concise: null | TOutput, verbose: null | TOutput) => TResult,
+    select: (
+      concise: ImpulseFormValueOutputSchema<TError, TOutput>,
+      verbose: ImpulseFormValueOutputSchemaVerbose<TError, TOutput>,
+    ) => TResult,
   ): TResult
-  public getOutput<TResult = null | TOutput>(
+  public getOutput<TResult = ImpulseFormValueOutputSchema<TError, TOutput>>(
     scope: Scope,
     select: (
-      concise: null | TOutput,
-      verbose: null | TOutput,
+      concise: ImpulseFormValueOutputSchema<TError, TOutput>,
+      verbose: ImpulseFormValueOutputSchemaVerbose<TError, TOutput>,
     ) => TResult = params._first as typeof select,
   ): TResult {
-    const [, output] = this._validate(scope)
+    const [, output] = this._transform(scope)
 
-    return select(output, output)
+    return select(output as TOutput, output as TOutput)
   }
 
   public getInput(scope: Scope): TInput {
@@ -489,9 +574,7 @@ export class ImpulseFormValue<TInput, TOutput = TInput> extends ImpulseForm<{
     })
   }
 
-  public onFocusWhenInvalid(
-    onFocus: (errors: ReadonlyArray<string>) => void,
-  ): VoidFunction {
+  public onFocusWhenInvalid(onFocus: (errors: TError) => void): VoidFunction {
     return this._onFocus._subscribe(onFocus)
   }
 }
