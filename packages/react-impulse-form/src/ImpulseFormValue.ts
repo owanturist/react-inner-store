@@ -121,7 +121,7 @@ export type ImpulseFormValueFlagSetter = Setter<boolean>
 
 export type ImpulseFormValueValidateOnSetter<TError> = WhenNull<
   TError,
-  null,
+  never,
   Setter<ValidateStrategy>
 >
 
@@ -130,16 +130,11 @@ export type ImpulseFormValueValidateOnSchema<TError> = WhenNull<
   typeof VALIDATE_ON_INIT,
   ValidateStrategy
 >
+
 export type ImpulseFormValueErrorSetter<TError> = WhenNull<
   TError,
-  null,
+  never,
   Setter<null | TError>
->
-
-export type ImpulseFormValueErrorSchema<TError> = WhenNull<
-  TError,
-  null,
-  null | TError
 >
 
 export class ImpulseFormValue<
@@ -162,8 +157,8 @@ export class ImpulseFormValue<
   "validateOn.schema.verbose": ImpulseFormValueValidateOnSchema<TError>
 
   "error.setter": ImpulseFormValueErrorSetter<TError>
-  "error.schema": ImpulseFormValueErrorSchema<TError>
-  "error.schema.verbose": ImpulseFormValueErrorSchema<TError>
+  "error.schema": null | TError
+  "error.schema.verbose": null | TError
 }> {
   public static of<TInput, TError = null>(
     input: TInput,
@@ -311,7 +306,7 @@ export class ImpulseFormValue<
   protected _getFocusFirstInvalidValue(): null | VoidFunction {
     const errors = untrack((scope) => {
       return this._onFocus._isEmpty() ? null : this.getError(scope)
-    }) as null | TError
+    })
 
     if (isNull(errors)) {
       return null
@@ -373,27 +368,21 @@ export class ImpulseFormValue<
     return select(dirty, dirty, true)
   }
 
-  public getError(scope: Scope): ImpulseFormValueErrorSchema<TError>
+  public getError(scope: Scope): null | TError
   public getError<TResult>(
     scope: Scope,
-    select: (
-      concise: ImpulseFormValueErrorSchema<TError>,
-      verbose: ImpulseFormValueErrorSchema<TError>,
-    ) => TResult,
+    select: (concise: null | TError, verbose: null | TError) => TResult,
   ): TResult
-  public getError<TResult = ImpulseFormValueErrorSchema<TError>>(
+  public getError<TResult = null | TError>(
     scope: Scope,
     select: (
-      concise: ImpulseFormValueErrorSchema<TError>,
-      verbose: ImpulseFormValueErrorSchema<TError>,
+      concise: null | TError,
+      verbose: null | TError,
     ) => TResult = params._first as typeof select,
   ): TResult {
     const [error] = this._transform(scope)
 
-    return select(
-      error as ImpulseFormValueErrorSchema<TError>,
-      error as ImpulseFormValueErrorSchema<TError>,
-    )
+    return select(error, error)
   }
 
   public setErrors(setter: ImpulseFormValueErrorSetter<TError>): void {
