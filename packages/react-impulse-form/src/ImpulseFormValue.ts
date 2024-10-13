@@ -13,10 +13,10 @@ import {
   resolveSetter,
   isUndefined,
   isNull,
-  isFunction,
   params,
   type WhenNull,
   type Func,
+  isArray,
 } from "./utils"
 import { ImpulseForm } from "./ImpulseForm"
 import { zodLikeParse, type ZodLikeSchema } from "./ZodLikeSchema"
@@ -89,7 +89,7 @@ export interface ImpulseFormValueOptions<TInput, TError = null> {
 
 export interface ImpulseFormValueOptionsWithSchema<TInput, TOutput = TInput>
   extends ImpulseFormValueOptions<TInput, ReadonlyArray<string>> {
-  validate: ZodLikeSchema<TOutput>
+  schema: ZodLikeSchema<TOutput>
 }
 
 export interface ImpulseFormValueOptionsWithValidate<
@@ -177,34 +177,38 @@ export class ImpulseFormValue<
 
   public static of<TInput, TError = null, TOutput = TInput>(
     input: TInput,
+    options:
+      | ImpulseFormValueOptions<TInput, TError>
+      | ImpulseFormValueOptionsWithSchema<TInput, TOutput>
+      | ImpulseFormValueOptionsWithValidate<TInput, TError, TOutput> = {},
+  ):
+    | ImpulseFormValue<TInput, TError, TOutput>
+    | ImpulseFormValue<TInput, ReadonlyArray<string>, TOutput>
+    | ImpulseFormValue<TInput, TError> {
+    if ("validate" in options) {
+      return ImpulseFormValue.initImpulseWithValidate(input, options)
+    }
+
+    if ("schema" in options) {
+      return ImpulseFormValue.initImpulseWithSchema(input, options)
+    }
+
+    return ImpulseFormValue.initImpulse(input, options)
+  }
+
+  private static initImpulseWithValidate<TInput, TError, TOutput>(
+    input: TInput,
     {
-      error = null,
       touched = false,
       isInputEqual = eq,
-      isInputDirty = (left: TInput, right: TInput, scope: Scope) =>
-        !isInputEqual(left, right, scope),
+      isInputDirty = (left, right, scope) => !isInputEqual(left, right, scope),
       initial,
-      validate,
       validateOn = VALIDATE_ON_TOUCH,
-    }:
-      | (ImpulseFormValueOptions<TInput, TError> & { validate?: never })
-      | ImpulseFormValueOptionsWithSchema<TInput, TOutput>
-      | ImpulseFormValueOptionsWithValidate<TInput, TError, TInput | TOutput>,
+      error = null,
+      validate,
+    }: ImpulseFormValueOptionsWithValidate<TInput, TError, TOutput>,
   ): ImpulseFormValue<TInput, TError, TOutput> {
     const _initial = isUndefined(initial) ? input : initial
-
-    const [_validate, _error] =
-      validate == null
-        ? [Impulse.of(), Impulse.of(error)]
-        : isFunction(validate)
-          ? [Impulse.of(validate), Impulse.of(error)]
-          : [
-              Impulse.of((value: TInput) => zodLikeParse(validate, value)),
-              Impulse.of(error as null | ReadonlyArray<string>, {
-                compare: (left, right) =>
-                  shallowArrayEquals(left ?? [], right ?? []),
-              }),
-            ]
 
     // initiate with the same value if specified but equal
     const inputOrInitial = untrack((scope) => {
@@ -217,16 +221,99 @@ export class ImpulseFormValue<
 
     return new ImpulseFormValue<TInput, TError, TOutput>(
       null,
+      isInputEqual,
+      isInputDirty,
       Impulse.of(),
       Impulse.of(touched),
       Impulse.of(validateOn),
-      _error as Impulse<null | TError>,
+      Impulse.of(error),
       Impulse.of(!isUndefined(initial)),
       Impulse.of(_initial, { compare: isInputEqual }),
       Impulse.of(inputOrInitial, { compare: isInputEqual }),
-      _validate as Impulse<undefined | Func<[TInput], Result<TError, TOutput>>>,
+      Impulse.of(validate),
+    )
+  }
+
+  private static initImpulseWithSchema<TInput, TOutput>(
+    input: TInput,
+    {
+      touched = false,
+      isInputEqual = eq,
+      isInputDirty = (left, right, scope) => !isInputEqual(left, right, scope),
+      initial,
+      validateOn = VALIDATE_ON_TOUCH,
+      error = null,
+      schema,
+    }: ImpulseFormValueOptionsWithSchema<TInput, TOutput>,
+  ): ImpulseFormValue<TInput, ReadonlyArray<string>, TOutput> {
+    const _initial = isUndefined(initial) ? input : initial
+
+    // initiate with the same value if specified but equal
+    const inputOrInitial = untrack((scope) => {
+      if (isInputEqual(_initial, input, scope)) {
+        return _initial
+      }
+
+      return input
+    })
+
+    return new ImpulseFormValue<TInput, ReadonlyArray<string>, TOutput>(
+      null,
       isInputEqual,
       isInputDirty,
+      Impulse.of(),
+      Impulse.of(touched),
+      Impulse.of(validateOn),
+      Impulse.of(error, {
+        compare: (left, right) => {
+          if (isArray(left) && isArray(right)) {
+            return shallowArrayEquals(left, right)
+          }
+
+          return eq(left, right)
+        },
+      }),
+      Impulse.of(!isUndefined(initial)),
+      Impulse.of(_initial, { compare: isInputEqual }),
+      Impulse.of(inputOrInitial, { compare: isInputEqual }),
+      Impulse.of((value) => zodLikeParse(schema, value)),
+    )
+  }
+
+  private static initImpulse<TInput, TError>(
+    input: TInput,
+    {
+      touched = false,
+      isInputEqual = eq,
+      isInputDirty = (left, right, scope) => !isInputEqual(left, right, scope),
+      initial,
+      validateOn = VALIDATE_ON_TOUCH,
+      error = null,
+    }: ImpulseFormValueOptions<TInput, TError>,
+  ): ImpulseFormValue<TInput, TError> {
+    const _initial = isUndefined(initial) ? input : initial
+
+    // initiate with the same value if specified but equal
+    const inputOrInitial = untrack((scope) => {
+      if (isInputEqual(_initial, input, scope)) {
+        return _initial
+      }
+
+      return input
+    })
+
+    return new ImpulseFormValue<TInput, TError, TInput>(
+      null,
+      isInputEqual,
+      isInputDirty,
+      Impulse.of(),
+      Impulse.of(touched),
+      Impulse.of(validateOn),
+      Impulse.of(error),
+      Impulse.of(!isUndefined(initial)),
+      Impulse.of(_initial, { compare: isInputEqual }),
+      Impulse.of(inputOrInitial, { compare: isInputEqual }),
+      Impulse.of((value): Result<TError, TInput> => [null, value]),
     )
   }
 
@@ -236,6 +323,8 @@ export class ImpulseFormValue<
 
   protected constructor(
     root: null | ImpulseForm,
+    private readonly _isInputEqual: Compare<TInput>,
+    private readonly _isInputDirty: Compare<TInput>,
     private readonly _initialSource: Impulse<
       undefined | ImpulseFormValue<TInput, TError, TOutput>
     >,
@@ -247,10 +336,8 @@ export class ImpulseFormValue<
     private readonly _initial: Impulse<TInput>,
     private readonly _input: Impulse<TInput>,
     private readonly _validate: Impulse<
-      undefined | Func<[TInput], Result<TError, TOutput>>
+      Func<[TInput], Result<TError, TOutput>>
     >,
-    private readonly _isInputEqual: Compare<TInput>,
-    private readonly _isInputDirty: Compare<TInput>,
   ) {
     super(root)
     this._updateValidated()
@@ -286,19 +373,15 @@ export class ImpulseFormValue<
     const error = this._error.getValue(scope)
 
     if (error != null) {
-      return [error, null] as Result<TError, null | TOutput>
-    }
-
-    const value = this.getInput(scope)
-    const validate = this._validate.getValue(scope)
-
-    if (isUndefined(validate)) {
-      return [null, value as unknown as TOutput]
+      return [error, null] as Result<TError, null>
     }
 
     if (!this._validated.getValue(scope)) {
       return [null, null]
     }
+
+    const value = this.getInput(scope)
+    const validate = this._validate.getValue(scope)
 
     return validate(value)
   }
@@ -321,8 +404,10 @@ export class ImpulseFormValue<
   protected _childOf(
     parent: null | ImpulseForm,
   ): ImpulseFormValue<TInput, TError, TOutput> {
-    return new ImpulseFormValue(
+    return new ImpulseFormValue<TInput, TError, TOutput>(
       parent,
+      this._isInputEqual,
+      this._isInputDirty,
       this._initialSource.clone(),
       this._touched.clone(),
       this._validateOn.clone(),
@@ -331,8 +416,6 @@ export class ImpulseFormValue<
       this._initial.clone(),
       this._input.clone(),
       this._validate.clone(),
-      this._isInputEqual,
-      this._isInputDirty,
     )
   }
 
@@ -373,7 +456,7 @@ export class ImpulseFormValue<
     scope: Scope,
     select: (concise: null | TError, verbose: null | TError) => TResult,
   ): TResult
-  public getError<TResult = null | TError>(
+  public getError<TResult>(
     scope: Scope,
     select: (
       concise: null | TError,
@@ -385,10 +468,9 @@ export class ImpulseFormValue<
     return select(error, error)
   }
 
-  public setErrors(setter: ImpulseFormValueErrorSetter<TError>): void {
-    this._error.setValue((error) => {
-      return (isFunction(setter) ? setter(error) : setter) as null | TError
-    })
+  public setErrors(setter: ImpulseFormValueErrorSetter<TError>): void
+  public setErrors(setter: Setter<null | TError>): void {
+    this._error.setValue((error) => resolveSetter(setter, error))
   }
 
   public isValidated(scope: Scope): boolean
@@ -396,7 +478,7 @@ export class ImpulseFormValue<
     scope: Scope,
     select: (concise: boolean, verbose: boolean) => TResult,
   ): TResult
-  public isValidated<TResult = boolean>(
+  public isValidated<TResult>(
     scope: Scope,
     select: (
       concise: boolean,
@@ -417,7 +499,7 @@ export class ImpulseFormValue<
       verbose: ImpulseFormValueValidateOnSchema<TError>,
     ) => TResult,
   ): TResult
-  public getValidateOn<TResult = ImpulseFormValueValidateOnSchema<TError>>(
+  public getValidateOn<TResult>(
     scope: Scope,
     select: (
       concise: ImpulseFormValueValidateOnSchema<TError>,
@@ -431,14 +513,11 @@ export class ImpulseFormValue<
     return select(validateOn, validateOn)
   }
 
-  public setValidateOn(setter: ImpulseFormValueValidateOnSetter<TError>): void {
+  public setValidateOn(setter: ImpulseFormValueValidateOnSetter<TError>): void
+  public setValidateOn(setter: Setter<ValidateStrategy>): void {
     batch((scope) => {
       const validateOn = this._validateOn.getValue(scope)
-      const nextValidateOn = (
-        isFunction(setter)
-          ? (setter as Func<[ValidateStrategy], ValidateStrategy>)(validateOn)
-          : setter
-      ) as ValidateStrategy
+      const nextValidateOn = resolveSetter(setter, validateOn)
 
       if (validateOn !== nextValidateOn) {
         this._validateOn.setValue(nextValidateOn)
@@ -452,7 +531,7 @@ export class ImpulseFormValue<
     scope: Scope,
     select: (concise: boolean, verbose: boolean) => TResult,
   ): TResult
-  public isTouched<TResult = boolean>(
+  public isTouched<TResult>(
     scope: Scope,
     select: (
       concise: boolean,
@@ -476,11 +555,9 @@ export class ImpulseFormValue<
       ? ZodLikeSchema<TOutput>
       : never,
   ): void {
-    function validate(value: TInput): Result<TError, TOutput> {
-      return zodLikeParse(schema, value) as Result<TError, TOutput>
-    }
-
-    this._validate.setValue(() => validate)
+    this._validate.setValue(() => (input: TInput) => {
+      return zodLikeParse(schema, input) as Result<TError, TOutput>
+    })
   }
 
   public reset(
@@ -510,7 +587,7 @@ export class ImpulseFormValue<
       verbose: ImpulseFormValueOutputSchemaVerbose<TError, TOutput>,
     ) => TResult,
   ): TResult
-  public getOutput<TResult = ImpulseFormValueOutputSchema<TError, TOutput>>(
+  public getOutput<TResult>(
     scope: Scope,
     select: (
       concise: ImpulseFormValueOutputSchema<TError, TOutput>,
@@ -519,7 +596,7 @@ export class ImpulseFormValue<
   ): TResult {
     const [, output] = this._transform(scope)
 
-    return select(output as TOutput, output as TOutput)
+    return select(output!, output!)
   }
 
   public getInput(scope: Scope): TInput {

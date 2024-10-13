@@ -11,9 +11,9 @@ export type Setter<
   TPrevValues extends ReadonlyArray<unknown> = [TValue],
 > = TValue | Func<TPrevValues, TValue>
 
-export type WhenNull<T, TIfNever, TIfNotNever> = [T] extends [null]
-  ? TIfNever
-  : TIfNotNever
+export type WhenNull<T, TIfNull, TIfNotNull> = [T] extends [null]
+  ? TIfNull
+  : TIfNotNull
 
 export type Result<TError, TData> = WhenNull<
   TError,
